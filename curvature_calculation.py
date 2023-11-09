@@ -196,13 +196,17 @@ def new_workflow(
     Returns:
         None
     """
-    log_file = '{}{}.{}_rh{}.log'.format(
-                fold, base_filename, methods[0], radius_hit)
+    
+    log_file = str(fold / f"{base_filename}.{methods[0]}_rh{radius_hit}.log")
+    fold = str(fold) + "/"
+    # log_file = '{}{}.{}_rh{}.log'.format(
+    #             fold, base_filename, methods[0], radius_hit)
     sys.stdout = open(log_file, 'w')
 
     t_begin = time.time()
 
     surf_file = base_filename + ".surface.vtp"
+
     if not isfile(fold + surf_file):
         if seg_file == '' or not isfile(fold + seg_file):
             raise pexceptions.PySegInputError(
@@ -421,8 +425,9 @@ def extract_curvatures_after_new_workflow(
     Returns:
         None
     """
-    log_file = '{}{}.{}_rh{}.log'.format(
-                fold, base_filename, methods[0], radius_hit)
+    log_file = fold / f"{base_filename}.{methods[0]}_rh{radius_hit}.log"
+    # log_file = '{}{}.{}_rh{}.log'.format(
+    #             fold, base_filename, methods[0], radius_hit)
     sys.stdout = open(log_file, 'a')
 
     for method in methods:
@@ -436,13 +441,18 @@ def extract_curvatures_after_new_workflow(
                     method = 'AVV'
         print("Method: {}".format(method))
         # input graph and surface files
-        gt_infile = '{}{}.{}_rh{}.gt'.format(
-            fold, base_filename, method, radius_hit)
-        vtp_infile = '{}{}.{}_rh{}.vtp'.format(
-            fold, base_filename, method, radius_hit)
-        # output csv, gt and vtp files (without excluding borders)
-        csv_outfile = '{}{}.{}_rh{}.csv'.format(
-            fold, base_filename, method, radius_hit)
+        gt_infile = str(fold / f"{base_filename}.{method}_rh{radius_hit}.gt")
+        vtp_infile = str(fold / f"{base_filename}.{method}_rh{radius_hit}.vtp")
+        csv_outfile = str(fold / f"{base_filename}.{method}_rh{radius_hit}.csv")
+
+
+        # gt_infile = '{}{}.{}_rh{}.gt'.format(
+        #     fold, base_filename, method, radius_hit)
+        # vtp_infile = '{}{}.{}_rh{}.vtp'.format(
+        #     fold, base_filename, method, radius_hit)
+        # # output csv, gt and vtp files (without excluding borders)
+        # csv_outfile = '{}{}.{}_rh{}.csv'.format(
+        #     fold, base_filename, method, radius_hit)
         if categorize_shape_index:  # overwrite the input files
             gt_outfile = gt_infile
             vtp_outfile = vtp_infile
@@ -454,13 +464,16 @@ def extract_curvatures_after_new_workflow(
                 dist))
             if dist > 0:
                 eb = "_excluding{}borders".format(dist)
-                csv_outfile = '{}{}.{}_rh{}{}.csv'.format(
-                    fold, base_filename, method, radius_hit, eb)
+
+                csv_outfile = fold / f"{base_filename}.{method}_rh{radius_hit}{eb}.csv"
+                
                 if regions == 1:  # not for multiple regions
-                    gt_outfile = '{}{}.{}_rh{}{}.gt'.format(
-                        fold, base_filename, method, radius_hit, eb)
-                    vtp_outfile = '{}{}.{}_rh{}{}.vtp'.format(
-                        fold, base_filename, method, radius_hit, eb)
+                    gt_outfile = str(fold / f"{base_filename}.{method}_rh{radius_hit}{eb}.gt")
+                    vtp_outfile = str(fold / f"{base_filename}.{method}_rh{radius_hit}{eb}.vtp")
+                    # gt_outfile = '{}{}.{}_rh{}{}.gt'.format(
+                    #     fold, base_filename, method, radius_hit, eb)
+                    # vtp_outfile = '{}{}.{}_rh{}{}.vtp'.format(
+                    #     fold, base_filename, method, radius_hit, eb)
 
             if regions == 1:  # normal case
                 # Create TriangleGraph object and load the graph file
@@ -475,14 +488,14 @@ def extract_curvatures_after_new_workflow(
                 for i in range(1, regions + 1):
                     print("\nRegion {}:".format(i))
                     # correct in/output files for multiple regions
-                    gt_region_infile = gt_infile.replace(
+                    gt_region_infile = str(gt_infile).replace(
                         base_filename, base_filename+str(i))
-                    csv_region_outfile = csv_outfile.replace(
+                    csv_region_outfile = str(csv_outfile).replace(
                         base_filename, base_filename+str(i))
                     csv_region_outfiles.append(csv_region_outfile)
-                    gt_region_outfile = gt_outfile.replace(
+                    gt_region_outfile = str(gt_outfile).replace(
                         base_filename, base_filename + str(i))
-                    vtp_region_outfile = vtp_outfile.replace(
+                    vtp_region_outfile = str(vtp_outfile).replace(
                         base_filename, base_filename + str(i))
 
                     # Create TriangleGraph object and load the graph file

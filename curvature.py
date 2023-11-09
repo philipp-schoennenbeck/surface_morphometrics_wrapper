@@ -10,7 +10,7 @@ __license__ = "GPLv3"
 import time
 import sys
 import click
-
+from pathlib import Path
 from curvature_calculation import new_workflow, extract_curvatures_after_new_workflow
 
 @click.command()
@@ -37,9 +37,10 @@ def run_pycurv(filename, folder, scale=1, radius_hit=10, min_component=30, exclu
     cores (int): number of cores to use for the calculation. Default is 16.
     remove_wrong_borders (bool): eat back the surface before calculations. If using screened poisson workflow leave this False.
     """
-    assert filename.endswith(".surface.vtp"), "Surface must be a vtp file of a surface, ending with .surface.vtp"
-    basename = filename[:-len(".surface.vtp")]
-    runtimes_file = "{}{}_runtimes.csv".format(folder, basename)
+    filename = Path(filename)
+    assert str(filename).endswith(".surface.vtp"), "Surface must be a vtp file of a surface, ending with .surface.vtp"
+    basename = filename.name[:-len(".surface.vtp")]
+    runtimes_file = folder / f"{basename}_runtimes.csv"
     seg_file = ""
     t_begin = time.time()
     print("\nCalculating curvatures for {}".format(basename))
@@ -52,22 +53,21 @@ def run_pycurv(filename, folder, scale=1, radius_hit=10, min_component=30, exclu
     t_end = time.time()
     duration = t_end - t_begin
     minutes, seconds = divmod(duration, 60)
-    if not folder.endswith("/"):
-        folder += "/"
-    output_vtp = folder+basename+f'.AVV_rh{radius_hit}.vtp'
-    output_csv = folder+basename+f'.AVV_rh{radius_hit}.csv'
-    output_gt = folder+basename+f'.AVV_rh{radius_hit}.gt'
-    output_log = folder+basename+f'.VV_rh{radius_hit}.log'
+    
+    output_vtp = folder / f'{basename}.AVV_rh{radius_hit}.vtp'
+    output_csv = folder / f'{basename}.AVV_rh{radius_hit}.csv'
+    output_gt =  folder / f'{basename}.AVV_rh{radius_hit}.gt'
+    output_log = folder / f'{basename}.AVV_rh{radius_hit}.log'
 
     print('\nTotal pycurv time: {} min {} s'.format(minutes, seconds))
     sys.stdout = sys.__stdout__
     print("Final outputs written:")
-    print("VTP file for paraview: "+output_vtp)
-    print("CSV file for pandas based quantification: "+output_csv)
-    print("GT file for further morphometrics quantification: "+output_gt)
-    print("Log for troubleshooting: "+output_log)
+    print("VTP file for paraview: "+str(output_vtp))
+    print("CSV file for pandas based quantification: "+str(output_csv))
+    print("GT file for further morphometrics quantification: "+str(output_gt))
+    print("Log for troubleshooting: "+str(output_log))
     
-    return
+    return (output_csv, output_gt, output_vtp)
 
 if __name__=="__main__":
     run_pycurv_cli()

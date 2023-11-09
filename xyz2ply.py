@@ -41,7 +41,7 @@ def xyz_to_ply(xyzfile, plyfile, pointweight=1, simplify=True, num_faces=150000,
     """
     print(f"Processing {xyzfile} into {plyfile}")
     ms = pm.MeshSet()
-    ms.load_new_mesh(xyzfile)
+    ms.load_new_mesh(str(xyzfile))
     ms.compute_normals_for_point_sets(k=k_neighbors, smoothiter=smooth_iter) # Predict smooth normals
     ms.surface_reconstruction_screened_poisson(depth=depth, pointweight=pointweight, iters=10, scale=1.2) # Screened Poisson
     ms.distance_from_reference_mesh(measuremesh = 1, refmesh=0 , maxdist=pm.Percentage(20), signeddist=False) # Delete points that are too far from the reference mesh
@@ -50,15 +50,11 @@ def xyz_to_ply(xyzfile, plyfile, pointweight=1, simplify=True, num_faces=150000,
     ms.delete_selected_faces_and_vertices()
     if simplify:
         ms.simplification_quadric_edge_collapse_decimation(targetfacenum=num_faces, qualitythr=0.6, preserveboundary=True, preservenormal=True, optimalplacement=True, planarquadric=True) # Simplify
-    ms.save_current_mesh(plyfile)
+    ms.save_current_mesh(str(plyfile))
     ms.clear()
     return 0
     
 
 if __name__ == "__main__":
-    xyzfiles = sorted(glob.glob("*.xyz"))
-    for point_cloud in xyzfiles:
-        print(f"Processing {point_cloud}")
-        plyfile = f"{point_cloud[:-4]}.ply"
-        xyz_to_ply(point_cloud, plyfile)
+    pass
 
