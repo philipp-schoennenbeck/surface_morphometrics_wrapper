@@ -13,6 +13,7 @@ import click
 VERBOSE=False
 
 def run_surface_generation_per_file(config, output, seg_values, label, mrc_file, data):
+    global VERBOSE
     xyz_file = Path(str(output) + ".xyz")
     ply_file = Path(str(output) + ".ply")
     vtp_file =  Path(str(output) + ".surface.vtp")
@@ -40,11 +41,10 @@ def run_surface_generation_per_file(config, output, seg_values, label, mrc_file,
 
 
 def run_surface_generation_per_file_cc(config, orig_output, seg_values, label, mrc_file, data, ind_dir):
+    global VERBOSE
     basename = Path(orig_output).stem
     output = ind_dir / basename
-    # xyz_file = Path(str(output) + ".xyz")
-    # ply_file = Path(str(output) + ".ply")
-    # vtp_file =  Path(str(output) + ".surface.vtp")
+
     xyz_files = mrc2xyz.mrc_to_xyz_cc(mrc_file, output, seg_values[label], config["surface_generation"]["angstroms"], data, verbose=VERBOSE) # Convert the segmentation file to xyz files
     ply_files = []
     vtp_files = []
@@ -86,6 +86,7 @@ def run_surface_generation_per_file_cc(config, orig_output, seg_values, label, m
 
 @ray.remote
 def run_curvature_on_file(surface, output_dir, config):
+    global VERBOSE
     output_csv, output_gt, output_vtp = curvature.run_pycurv(surface, output_dir,
                             scale=1.0,
                             radius_hit=config["curvature_measurements"]["radius_hit"],
@@ -98,6 +99,7 @@ def run_curvature_on_file(surface, output_dir, config):
 
 
 def combine_ind_files_after_pycurv(config, ind_dir, basenames):
+    global VERBOSE
     def get_order(files, search_str):
         order = []
         for file in files:
@@ -128,6 +130,7 @@ def combine_ind_files_after_pycurv(config, ind_dir, basenames):
             utils.combine_gt_files(scaled_clean_gt_files, current_basename.with_suffix(f".scaled_cleaned.gt"), get_order(scaled_clean_gt_files, f'.*{current_basename.name}_(.*).scaled_cleaned.gt'))   
 
 def run_curvature(config, ind_dir, basenames):
+    global VERBOSE
     
     
     if config["separate_connected_components"]:
@@ -151,65 +154,67 @@ def run_curvature(config, ind_dir, basenames):
 
 
 def run_distance_orientations(config, basenames):
-        radius_hit = config["curvature_measurements"]["radius_hit"]
-        dist_settings = config["distance_and_orientation_measurements"]
-        for mrcfile, basename in basenames.items():
-            for current_label, current_basename in basename.items():
-                if dist_settings["intra"]:
-                    if current_label in dist_settings["intra"]:
-                        current_basename:Path
-                        graphname = current_basename.with_suffix(f".AVV_rh{radius_hit}.gt")
-                        if not graphname.exists():
-                            if VERBOSE:
-                                print(f"No file found for {graphname.name}")
-                                print("Skipping this label for this tomogram")
-                            continue
+    global VERBOSE
+    radius_hit = config["curvature_measurements"]["radius_hit"]
+    dist_settings = config["distance_and_orientation_measurements"]
+    for mrcfile, basename in basenames.items():
+        for current_label, current_basename in basename.items():
+            if dist_settings["intra"]:
+                if current_label in dist_settings["intra"]:
+                    current_basename:Path
+                    graphname = current_basename.with_suffix(f".AVV_rh{radius_hit}.gt")
+                    if not graphname.exists():
                         if VERBOSE:
-                            print(f"Intra-surface distances for {graphname.name}")
-                        surfacename = graphname.with_suffix(".vtp")
-                        if dist_settings["verticality"]:
-                            intradistance_verticality.surface_verticality(str(graphname),verbose=VERBOSE)
-                        intradistance_verticality.surface_self_distances(str(graphname), str(surfacename),
-                                                                        dist_min=dist_settings["mindist"],
-                                                                        dist_max=dist_settings["maxdist"],
-                                                                        tolerance=dist_settings["tolerance"],
-                                                                        exportcsv=True,verbose=VERBOSE)
-        # Inter-surface distances
-            if dist_settings["inter"]:
-                for current_label1, current_basename1 in basename.items():
-                    if current_label1 in dist_settings["inter"]:
-                        comparison = dist_settings["inter"][current_label1]
-                
-                        graphname1 = current_basename1.with_suffix(f".AVV_rh{radius_hit}.gt")
-                        if not graphname1.exists():
-                            if VERBOSE:
-                                print(f"No file found for {graphname1.name}")
-                                print(f"Skipping all intersurface measurements for label {current_label1}")
-                            continue
-                        for current_label2, current_basename2 in basename.items():
-                            if current_label2 in comparison:
-                                graphname2 = current_basename2.with_suffix(f".AVV_rh{radius_hit}.gt")
-                                if not graphname2.exists():
-                                    if VERBOSE:
-                                        print(f"No file found for {graphname2.name}")
-                                        print(f"Skipping comparison with {current_label2}")
-                                    continue
+                            print(f"No file found for {graphname.name}")
+                            print("Skipping this label for this tomogram")
+                        continue
+                    if VERBOSE:
+                        print(f"Intra-surface distances for {graphname.name}")
+                    surfacename = graphname.with_suffix(".vtp")
+                    if dist_settings["verticality"]:
+                        intradistance_verticality.surface_verticality(str(graphname),verbose=VERBOSE)
+                    intradistance_verticality.surface_self_distances(str(graphname), str(surfacename),
+                                                                    dist_min=dist_settings["mindist"],
+                                                                    dist_max=dist_settings["maxdist"],
+                                                                    tolerance=dist_settings["tolerance"],
+                                                                    exportcsv=True,verbose=VERBOSE)
+    # Inter-surface distances
+        if dist_settings["inter"]:
+            for current_label1, current_basename1 in basename.items():
+                if current_label1 in dist_settings["inter"]:
+                    comparison = dist_settings["inter"][current_label1]
+            
+                    graphname1 = current_basename1.with_suffix(f".AVV_rh{radius_hit}.gt")
+                    if not graphname1.exists():
+                        if VERBOSE:
+                            print(f"No file found for {graphname1.name}")
+                            print(f"Skipping all intersurface measurements for label {current_label1}")
+                        continue
+                    for current_label2, current_basename2 in basename.items():
+                        if current_label2 in comparison:
+                            graphname2 = current_basename2.with_suffix(f".AVV_rh{radius_hit}.gt")
+                            if not graphname2.exists():
                                 if VERBOSE:
-                                    print(f"Inter-surface distances for {current_label1} and {current_label2}")
-                                interdistance_orientation.surface_to_surface(str(graphname1), current_label1,
-                                                                                        str(graphname2), current_label2,
-                                                                                        orientation=dist_settings["relative_orientation"],
-                                                                                        save_neighbor_index=True,
-                                                                                        exportcsv=True, verbose=VERBOSE)
+                                    print(f"No file found for {graphname2.name}")
+                                    print(f"Skipping comparison with {current_label2}")
+                                continue
+                            if VERBOSE:
+                                print(f"Inter-surface distances for {current_label1} and {current_label2}")
+                            interdistance_orientation.surface_to_surface(str(graphname1), current_label1,
+                                                                                    str(graphname2), current_label2,
+                                                                                    orientation=dist_settings["relative_orientation"],
+                                                                                    save_neighbor_index=True,
+                                                                                    exportcsv=True, verbose=VERBOSE)
 
 
-        
+    
 
 
 def test_stuff():
     pass
 
 def run_surface_generation(config, basenames, ind_dir, seg_values):
+    global VERBOSE
     results = []
     mrc_ids = []
     for mrc_file, basename in basenames.items():
@@ -229,6 +234,7 @@ def run_surface_generation(config, basenames, ind_dir, seg_values):
 @click.command()
 @click.argument('config', type=click.Path(exists=True, readable=True,file_okay=True, dir_okay=False, path_type=Path), )
 def run(config):
+    global VERBOSE
     config_file = config
     date = time.strftime("%Y%m%d-%H%M%S")
 

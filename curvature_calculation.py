@@ -139,7 +139,7 @@ def new_workflow(
         methods=['VV'], page_curvature_formula=False, area2=True,
         label=1, filled_label=None, unfilled_mask=None, holes=0,
         remove_wrong_borders=True, min_component=100, only_normals=False,
-        cores=6, runtimes=''):
+        cores=6, runtimes='', overwrite=True):
     """
     A script for running all processing steps to estimate membrane curvature.
 
@@ -268,7 +268,7 @@ def new_workflow(
 
     clean_graph_file = '{}.scaled_cleaned.gt'.format(base_filename)
     clean_surf_file = '{}.scaled_cleaned.vtp'.format(base_filename)
-    if not isfile(fold + clean_graph_file) or not isfile(fold + clean_surf_file):
+    if (not isfile(fold + clean_graph_file) or not isfile(fold + clean_surf_file)) or overwrite:
         print('\nBuilding a triangle graph from the surface...')
         tg = TriangleGraph()
         scale = (pixel_size, pixel_size, pixel_size)
@@ -315,7 +315,7 @@ def new_workflow(
     # Running the modified Normal Vector Voting algorithms:
     gt_file1 = '{}{}.NVV_rh{}.gt'.format(fold, base_filename, radius_hit)
     method_tg_surf_dict = {}
-    if not isfile(gt_file1):
+    if (not isfile(gt_file1)) or overwrite:
         if runtimes != '':
             with open(runtimes, 'w') as f:
                 f.write("num_v;radius_hit;g_max;avg_num_neighbors;cores;"
