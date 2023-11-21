@@ -27,7 +27,7 @@ def xyz_to_ply_from_CLI(xyzfile, plyfile, pointweight, simplify, num_faces, k_ne
     xyz_to_ply(xyzfile, plyfile, pointweight=pointweight, simplify=simplify, num_faces=num_faces, k_neighbors=k_neighbors, deldist=deldist, smooth_iter=smooth_iter, depth=depth)
 
 
-def xyz_to_ply(xyzfile, plyfile, pointweight=1, simplify=True, num_faces=150000, k_neighbors=70, deldist=2, smooth_iter=1, depth=9):
+def xyz_to_ply(xyzfile, plyfile, pointweight=1, simplify=True, num_faces=150000, k_neighbors=70, deldist=2, smooth_iter=1, depth=9, verbose=False):
     """Convert an xyz file to a ply file using pymeshlab
 
     Arguments:
@@ -39,7 +39,8 @@ def xyz_to_ply(xyzfile, plyfile, pointweight=1, simplify=True, num_faces=150000,
     deldist {int} -- Max distance to extrapolate. Default 4; distances are in the point cloud distance unit (default nm).
     smooth_iter {int} -- Number of smoothing iterations. Default 1.
     """
-    print(f"Processing {xyzfile} into {plyfile}")
+    if verbose:
+        print(f"Processing {xyzfile} into {plyfile}")
     ms = pm.MeshSet()
     ms.load_new_mesh(str(xyzfile))
     ms.compute_normals_for_point_sets(k=k_neighbors, smoothiter=smooth_iter) # Predict smooth normals

@@ -25,7 +25,7 @@ from curvature_calculation import new_workflow, extract_curvatures_after_new_wor
 def run_pycurv_cli(filename, folder, scale, radius_hit, min_component, exclude_borders, cores, remove_wrong_borders):
     run_pycurv(filename, folder, scale, radius_hit, min_component, exclude_borders, cores, remove_wrong_borders)
 
-def run_pycurv(filename, folder, scale=1, radius_hit=10, min_component=30, exclude_borders=0, cores=16, remove_wrong_borders=False):
+def run_pycurv(filename, folder, scale=1, radius_hit=10, min_component=30, exclude_borders=0, cores=16, remove_wrong_borders=False, verbose=False):
     """Run pycurv on a vtp surface file and extract curvatures
     
     filename (str): vtp surface file
@@ -43,10 +43,12 @@ def run_pycurv(filename, folder, scale=1, radius_hit=10, min_component=30, exclu
     runtimes_file = folder / f"{basename}_runtimes.csv"
     seg_file = ""
     t_begin = time.time()
-    print("\nCalculating curvatures for {}".format(basename))
+    if verbose:
+        print("\nCalculating curvatures for {}".format(basename))
     new_workflow(
         basename, seg_file, folder, scale, radius_hit, methods=['VV'],  min_component=min_component, runtimes=runtimes_file, cores=cores, remove_wrong_borders=remove_wrong_borders)
-    print("\nExtracting curvatures for all surfaces")
+    if verbose:
+        print("\nExtracting curvatures for all surfaces")
     extract_curvatures_after_new_workflow(
         folder, basename, radius_hit, methods=['VV'],
         exclude_borders=exclude_borders, categorize_shape_index=True)

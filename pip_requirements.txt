@@ -4,3 +4,8 @@ pymeshlab
 pyyaml
 click
 mrcfile
+ray
+scipy
+fast-histogram
+shapely
+scikit-image

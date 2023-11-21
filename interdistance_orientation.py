@@ -19,7 +19,7 @@ from scipy.spatial import cKDTree
 from intradistance_verticality import export_csv
  
 
-def surface_to_surface(graph1, label1, graph2, label2, orientation=True, save_neighbor_index=True, exportcsv=True):
+def surface_to_surface(graph1, label1, graph2, label2, orientation=True, save_neighbor_index=True, exportcsv=True, verbose=False):
     """ Measure the nearest distance to graph2 for every point on graph1.
     Optionally also measure the nearest neighbor relative orientation angle.
     Bidirectional - data is written to both graphs, and new VTP files are output.
@@ -34,17 +34,18 @@ def surface_to_surface(graph1, label1, graph2, label2, orientation=True, save_ne
     """
     surface1 = graph1[:-3] + ".vtp" # remove .gt from filename and replace with vtp
     surface2 = graph2[:-3] + ".vtp" # remove .gt from filename and replace with vtp
-    print(f"Loading {graph1}")
+    if verbose:
+        print(f"Loading {graph1}")
     tg1 = TriangleGraph()
     tg1.graph = load_graph(graph1)
     xyz1 = tg1.graph.vp.xyz.get_2d_array([0,1,2]).transpose()
-
-    print(f"Loading {graph2}")
+    if verbose:
+        print(f"Loading {graph2}")
     tg2 = TriangleGraph()
     tg2.graph = load_graph(graph2)
     xyz2 = tg2.graph.vp.xyz.get_2d_array([0,1,2]).transpose()
-
-    print("Calculating Distances")
+    if verbose:
+        print("Calculating Distances")
     vprop1 = tg1.graph.new_vertex_property("double")
     vprop2 = tg2.graph.new_vertex_property("double")
 
@@ -59,7 +60,8 @@ def surface_to_surface(graph1, label1, graph2, label2, orientation=True, save_ne
     tg2.graph.vp[label1+"_dist"] = vprop2
 
     if save_neighbor_index: # Argmin gets the first occurence of the minimum
-        print("Saving Neighbor Index")
+        if verbose:
+            print("Saving Neighbor Index")
         neighbor1=tg1.graph.new_vertex_property("int")
         neighbor1.a = min_index_1
         tg1.graph.vp[label2+"_neighbor_index"] = neighbor1
@@ -68,7 +70,8 @@ def surface_to_surface(graph1, label1, graph2, label2, orientation=True, save_ne
         tg2.graph.vp[label1+"_neighbor_index"] = neighbor2
 
     if orientation:
-        print("Calculating Relative Orientations")
+        if verbose:
+            print("Calculating Relative Orientations")
         angles1 =  tg1.graph.vp.n_v.get_2d_array([0,1,2]).transpose()
         angles2 = tg2.graph.vp.n_v.get_2d_array([0,1,2]).transpose()
 
@@ -85,23 +88,24 @@ def surface_to_surface(graph1, label1, graph2, label2, orientation=True, save_ne
 
 
 
-        
-    print(f"Distances from {label1} to {label2} (Min, Mean, Median, Max):")
-    print(np.min(vprop1.a), np.mean(vprop1.a),np.median(vprop1.a), np.max(vprop1.a))
+    if verbose:  
+        print(f"Distances from {label1} to {label2} (Min, Mean, Median, Max):")
+        print(np.min(vprop1.a), np.mean(vprop1.a),np.median(vprop1.a), np.max(vprop1.a))
 
-    print(f"Distances from {label2} to {label1} (Min, Mean, Median, Max):")
-    print(np.min(vprop2.a), np.mean(vprop2.a),np.median(vprop2.a), np.max(vprop2.a))
+        print(f"Distances from {label2} to {label1} (Min, Mean, Median, Max):")
+        print(np.min(vprop2.a), np.mean(vprop2.a),np.median(vprop2.a), np.max(vprop2.a))
 
     # Save updated surface and tranglegraph
     # curvedness = tg1.graph.vp["curvedness_VV"]
-    print("Saving out files")
+    if verbose:
+        print("Saving out files")
     surf1 = tg1.graph_to_triangle_poly()
     io.save_vtp(surf1, surface1)
     tg1.graph.save(graph1)
     # Save CSV
     if exportcsv:
         csvname = graph1[:-3]+".csv"
-        export_csv(tg1,csvname)
+        export_csv(tg1,csvname, verbose=verbose)
     # Save updated surface and tranglegraph
     surf2 = tg2.graph_to_triangle_poly()
     io.save_vtp(surf2, surface2)
@@ -109,7 +113,7 @@ def surface_to_surface(graph1, label1, graph2, label2, orientation=True, save_ne
 
     if exportcsv:
         csvname = graph2[:-3]+".csv"
-        export_csv(tg2, csvname)
+        export_csv(tg2, csvname, verbose=verbose)
 
 @click.command()
 @click.argument('graph1', type=click.Path(exists=True))

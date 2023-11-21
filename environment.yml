@@ -1,4 +1,4 @@
-name: morphometrics
+name: morphometrics_wrapper
 dependencies:
   - conda-forge::python=3.9
   - conda-forge::pyqt

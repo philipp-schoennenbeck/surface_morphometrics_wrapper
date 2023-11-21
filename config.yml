@@ -1,12 +1,15 @@
 data_dir: "./example_data/"
 work_dir: "./morphometrics/"
-seperate_connected_components: true
+seperate_connected_components: true # Seperate connected components from the segmentation which belong to the same label. Otherwise closely located membranes can influence the mesh generation
+verbose: true # Prints information if true
+cores: 4 # Number of cores to use for parallel processing.
+
 segmentation_values: # The value used to represent each feature, and the name of the feature.
   OMM: 1
   IMM: 2
   ER: 3
 surface_generation:
-  run: True
+  run: True # Whether to run surface_generation
   angstroms: false # Default scaling adjusts so surfaces are nm-scaled, if set to true surfaces are not rescaled and remain angstrom-scaled.
   simplify: True # You should not turn this off. Non-simplified surfaces can be VERY slow and there is no real benefit.
   max_triangles: 150000 # if more than this number of triangles are generated, the surface is decimated to this number
@@ -16,12 +19,12 @@ surface_generation:
   neighbor_count: 70 # Number of neighbors used for normal estimation. Should not need to adjust this, but I am exposing it as a tuning variable. Values over 50 seem to all be equivalently good...
   smoothing_iterations: 1 # Number of smoothing iterations to perform for estimating normals. You should usually leave this at 1.
 curvature_measurements:
-  run: true
+  run: true # Whether to run curvature_measurements
   radius_hit: 8 # This corresponds to the radius of the smallest feature of interest, roughly, for neighborhood determination. 8-15 seems to be a good range for mitochondria
   min_component: 30 # The minimum number of triangles for a component to be considered for curvature measurement.
   exclude_borders: 0 # Values greater than zero exclude the border from the curvature calculation by n nm/angstroms.
 distance_and_orientation_measurements:
-  run: True
+  run: True # Whether to run distance_and_orientation_measurements
   mindist: 3 # Minimum distance between two points for them to be considered for distance measurement.
   maxdist: 400 # Maximum distance between two points for them to be considered for distance measurement.
   tolerance: 0.1 # Tolerance for determining if a triangle is contacted by a line.
@@ -35,8 +38,29 @@ distance_and_orientation_measurements:
     OMM:
       - IMM
       - ER
-cores: 4 # Number of cores to use for parallel processing.
-
+thickness_estimations:
+  run: true # Whether to run thickness_estimations
+  check_output: 1  # To get an understanding why thickness estimation failed for some points you can check some outputs. check_output = Number of graphs output per process (cores) per method per reason # default 1
+  clip: true # whether to clip the values of the tomogram to mean - standard_deviation * clip_stds : mean + standard_deviation * clip_stds # default true
+  clip_stds: 5 # default 5
+  cylinder_height: 450 # Height of cylinder extracted at each point (in angstrom/nm) #default 450
+  cylinder_radius: 40 # Radius of cylinder extracted at each point (in angstrom/nm) # default 40
+  gradient_threshold: 0.0015 # If the relevant part of the density profile has a gradient below gradient_threshold thickness is not estimated # default 0.0015
+  high_pass_filter: 1500  # If value > 0 apply a high pass filter of high_pass_filter angstrom to the tomogram (global median method can be more accurate this way) # default 1500
+  maxima_gradient_crop: 15  # Values to crop around most likely minimum and maximum values of density profile (for maxima method)# default 15
+  methods: # The different methods to estimate the thickness from the density profile
+  - local_median # Use the median value from the neighbourhood around each point to find intersection points with the density profile
+  - global_median # Use the global median value to find intersection points with the density profile
+  - local_mode # Use the modal value from the neighbourhood around each point for intersection with the density profile
+  - maxima # Find the two maxima around the most likely minimum of the density profile to estimate the thickness 
+  - gradient # Find the two turning points (maximum gradient) around the most likely minimum of the density profile to estimate the thickness 
+  pixel_size: 0 # pixel size in angstrom/nm (0 if it should be read from mrcfile) # default 0
+  profile_sigma: 1.5 # Sigma for density profile smoothing # default 1.5
+  profile_window_size: 10 # Window size for density profile smoothing # default 10
+  smooth: false  # Whether to smooth the tomogram # default false
+  smooth_kernel: 10 # Kernel size for smoothing # default 10
+  threshold_gradient_crop: 15 # Values to crop around most likely minimum value of density profile because the gradient around the minimum value is low (for local median, global median and local mode methods) # default 15
+  tomogram_dir: "./tomograms/" # directory with the original tomograms (these tomograms and the segmentations from data_dir will be sorted and then assigned)
 
 
 

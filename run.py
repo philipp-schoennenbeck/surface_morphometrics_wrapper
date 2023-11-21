@@ -6,6 +6,9 @@ import ray
 import glob
 import re
 import shutil
+import logging
+import time
+import click
 
 VERBOSE=False
 
@@ -13,7 +16,7 @@ def run_surface_generation_per_file(config, output, seg_values, label, mrc_file,
     xyz_file = Path(str(output) + ".xyz")
     ply_file = Path(str(output) + ".ply")
     vtp_file =  Path(str(output) + ".surface.vtp")
-    ret_val = mrc2xyz.mrc_to_xyz(mrc_file, xyz_file, seg_values[label], config["surface_generation"]["angstroms"], data) # Convert the segmentation file to xyz files
+    ret_val = mrc2xyz.mrc_to_xyz(mrc_file, xyz_file, seg_values[label], config["surface_generation"]["angstroms"], data, verbose=VERBOSE) # Convert the segmentation file to xyz files
     if ret_val == 0:
         if VERBOSE:
             print(f"Generating a ply mesh with Screened Poisson: {ply_file}")
@@ -24,7 +27,7 @@ def run_surface_generation_per_file(config, output, seg_values, label, mrc_file,
                                         k_neighbors=config["surface_generation"]["neighbor_count"], 
                                         deldist=config["surface_generation"]["extrapolation_distance"], 
                                         smooth_iter=config["surface_generation"]["smoothing_iterations"],
-                                        depth=config["surface_generation"]["octree_depth"])
+                                        depth=config["surface_generation"]["octree_depth"], verbose=VERBOSE)
         if ret_val != 0:
             if VERBOSE:
                 print("Error converting xyz file to ply")
@@ -42,11 +45,10 @@ def run_surface_generation_per_file_cc(config, orig_output, seg_values, label, m
     # xyz_file = Path(str(output) + ".xyz")
     # ply_file = Path(str(output) + ".ply")
     # vtp_file =  Path(str(output) + ".surface.vtp")
-    xyz_files = mrc2xyz.mrc_to_xyz_cc(mrc_file, output, seg_values[label], config["surface_generation"]["angstroms"], data) # Convert the segmentation file to xyz files
+    xyz_files = mrc2xyz.mrc_to_xyz_cc(mrc_file, output, seg_values[label], config["surface_generation"]["angstroms"], data, verbose=VERBOSE) # Convert the segmentation file to xyz files
     ply_files = []
     vtp_files = []
     for xyz_file in xyz_files:
-        print(xyz_file)
         
         if xyz_file is not None:
             xyz_file = Path(xyz_file)
@@ -61,7 +63,7 @@ def run_surface_generation_per_file_cc(config, orig_output, seg_values, label, m
                                             k_neighbors=config["surface_generation"]["neighbor_count"], 
                                             deldist=config["surface_generation"]["extrapolation_distance"], 
                                             smooth_iter=config["surface_generation"]["smoothing_iterations"],
-                                            depth=config["surface_generation"]["octree_depth"])
+                                            depth=config["surface_generation"]["octree_depth"], verbose=VERBOSE)
             
             if ret_val is None:
                 if VERBOSE:
@@ -89,7 +91,7 @@ def run_curvature_on_file(surface, output_dir, config):
                             radius_hit=config["curvature_measurements"]["radius_hit"],
                             min_component=config["curvature_measurements"]["min_component"],
                             exclude_borders=config["curvature_measurements"]["exclude_borders"],
-                            cores=config["curvature_measurements"]["pycurv_cores"])
+                            cores=config["curvature_measurements"]["pycurv_cores"], verbose=VERBOSE)
     return output_csv, output_gt, output_vtp 
 
 
@@ -188,8 +190,9 @@ def run_distance_orientations(config, basenames):
                             if current_label2 in comparison:
                                 graphname2 = current_basename2.with_suffix(f".AVV_rh{radius_hit}.gt")
                                 if not graphname2.exists():
-                                    print(f"No file found for {graphname2.name}")
-                                    print(f"Skipping comparison with {current_label2}")
+                                    if VERBOSE:
+                                        print(f"No file found for {graphname2.name}")
+                                        print(f"Skipping comparison with {current_label2}")
                                     continue
                                 if VERBOSE:
                                     print(f"Inter-surface distances for {current_label1} and {current_label2}")
@@ -197,24 +200,14 @@ def run_distance_orientations(config, basenames):
                                                                                         str(graphname2), current_label2,
                                                                                         orientation=dist_settings["relative_orientation"],
                                                                                         save_neighbor_index=True,
-                                                                                        exportcsv=True)
+                                                                                        exportcsv=True, verbose=VERBOSE)
 
 
         
 
 
 def test_stuff():
-    # graphname = "/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/work_dir/individual_files/filtered_segmentation_mem_1_1.AVV_rh8.gt"
-    # intradistance_verticality.surface_verticality(str(graphname))
-
-    # intradistance_verticality.surface_verticality(str("/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/work_dir/individual_files/filtered_segmentation_mem_1_1.AVV_rh8.gt"), True)
-    # intradistance_verticality.surface_verticality(str("/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/work_dir/individual_files/filtered_segmentation_mem_1_2.AVV_rh8.gt"), True)
-    utils.combine_gt_files(["/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/work_dir/individual_files/filtered_segmentation_mem_1_1.AVV_rh8.gt","/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/work_dir/individual_files/filtered_segmentation_mem_1_2.AVV_rh8.gt"], 
-                           "/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/test_output/test.gt")
-    intradistance_verticality.surface_verticality("/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/test_output/test.gt", True)
-    # graphname = "/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/work_dir/filtered_segmentation_mem_1.AVV_rh8.gt"
-    # intradistance_verticality.surface_verticality(str(graphname))
-
+    pass
 
 def run_surface_generation(config, basenames, ind_dir, seg_values):
     results = []
@@ -233,15 +226,19 @@ def run_surface_generation(config, basenames, ind_dir, seg_values):
 
 
 
-
-if __name__ == "__main__":
-
-    config_file = Path("/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/Pos1/config_angstrom.yml")
-    config_file = Path("/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/config_angstrom.yml")
+@click.command()
+@click.argument('config', type=click.Path(exists=True, readable=True,file_okay=True, dir_okay=False, path_type=Path), )
+def run(config):
+    config_file = config
+    date = time.strftime("%Y%m%d-%H%M%S")
 
     config = utils.readConfig(config_file)
     basenames = utils.get_basenames(config)
     ind_dir = config["work_dir"] / "individual_files"
+    log_dir = Path(config["work_dir"] / "logs")
+    log_dir.mkdir(exist_ok=True, parents=True)
+    logging.basicConfig(filename=log_dir / f"{date}_warnings.txt", level=logging.DEBUG)
+    logging.captureWarnings(True)
     basenames = utils.get_basenames(config)
     seg_values = config["segmentation_values"]
     if "verbose" in config:
@@ -269,3 +266,8 @@ if __name__ == "__main__":
     if session.exists():
         shutil.rmtree(session, ignore_errors=True)
 
+
+
+
+if __name__ == "__main__":
+    run()

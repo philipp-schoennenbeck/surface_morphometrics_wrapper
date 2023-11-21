@@ -26,7 +26,6 @@ def convert_from_CLI(input_ply, output_vtp):
 
 def ply_to_vtp(plyfilename, vtpfilename):
     """Convert an input ply file to a vtp file"""
-    print("open")
     plyfile = vtk.vtkPLYReader()
     plyfile.SetFileName(plyfilename)
     plyfile.Update()

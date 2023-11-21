@@ -1,4 +1,22 @@
-# Surface Morphometrics Pipeline
+# Surface Morphometrics Pipeline Wrapper
+Wrapper for the [Surface Morphometrics Pipeline](https://github.com/GrotjahnLab/surface_morphometrics). This wrapper aims to make the tools of the pipeline easier to use by adding inate support for parallel processing, adding support for separating connected components of the same label (the original mesh creation sometimes fails to create seperate meshes) as well as adding another analysis step for estimating the thickness of membranes.
+
+To use these new features use the modified config file. Each pipeline step has a <em>run</em> flag to signal if this step is supposed to be running. Note that the steps are building on each other.
+
+If the flag <em>separate_connected_components</em> is used, the pipeline will create separate files for each component of the same label (components which do not have neighbouring pixels in the segmentation) as well as create summed up versions for each label.
+
+The <em>cores</em> parameter is now used to process most steps in parallel. Each label or connected component of a label creates a new process. 
+
+Additionally there is another analysis step for estimating the thickness of membranes. At every point of the surface a cylinder perpendicular to the surface is cut out and the values along the normal at that point are averaged. From this plot with a prominent minimum (the dark pixels in the micrograph) the thickness can be estimated by various thresholds, gradients or neighbouring maxima. To use this part of the analysis pipeline an additional directory with the original micrograph has to be given as the <em>tomogram_dir</em> parameter.
+
+To use this wrapper activate the python environment the usual way and afterwards run 
+```bash
+python run.py config.yaml
+```
+
+The normal way to run the pipeline should also still work.
+
+## Surface Morphometrics Pipeline
 ![Workflow Figure](https://raw.githubusercontent.com/GrotjahnLab/surface_morphometrics/master/Workflow_title.png)
 ### Quantification of Membrane Surfaces Segmented from Cryo-ET or other volumetric imaging.  
 Author: __Benjamin Barad__/*<benjamin.barad@gmail.com>*. 
@@ -13,7 +31,7 @@ using pycurv's vector voting framework, and tools to convert these morphological
 ## Installation:
 1. Clone this git repository: `git clone https://github.com/grotjahnlab/surface_morphometrics.git`
 2. Install the conda environment: `conda env create -f environment.yml`
-3. Activate the conda environment: `conda activate morphometrics`
+3. Activate the conda environment: `conda activate morphometrics_wrapper`
 4. Install additional dependencies: `pip install -r pip_requirements.txt`
 
 ## Example data

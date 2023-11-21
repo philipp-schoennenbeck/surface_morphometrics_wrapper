@@ -1,7 +1,6 @@
 import yaml
 from pathlib import Path
 import os
-import shutil
 import mrcfile
 from scipy.ndimage import label
 import numpy as np
