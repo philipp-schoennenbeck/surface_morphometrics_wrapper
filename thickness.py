@@ -956,7 +956,10 @@ def thickness(config, basenames):
                                                                             profile_sigma, check_output, 0, current_check_output_path,threshold_gradient_crop,
                                                                             maxima_gradient_crop, gradient_threshold)
 
+
             thicknesses = np.array(thicknesses).T
+            if not config["surface_generation"]["angstroms"]:
+                thicknesses *= 10
             for t, method in enumerate(out_methods):
                 filtered_csv[method] = thicknesses[t]
 
