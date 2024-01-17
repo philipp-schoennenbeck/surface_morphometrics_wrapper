@@ -197,22 +197,22 @@ def run_curvature(config, ind_dir, basenames):
     global VERBOSE
     
     
-    # if config["separate_connected_components"]:
-    #     mesh_files = glob.glob(str(ind_dir) +"/*.surface.vtp")
-    #     output_dir = ind_dir
+    if config["separate_connected_components"]:
+        mesh_files = glob.glob(str(ind_dir) +"/*.surface.vtp")
+        output_dir = ind_dir
         
-    # else:
+    else:
 
-    #     mesh_files = glob.glob(str(config["work_dir"])+"/*.surface.vtp")
-    #     output_dir = config["work_dir"]
-    # mesh_files = [Path(f) for f in mesh_files]
+        mesh_files = glob.glob(str(config["work_dir"])+"/*.surface.vtp")
+        output_dir = config["work_dir"]
+    mesh_files = [Path(f) for f in mesh_files]
 
-    # results = []
-    # for surface in mesh_files:
-    #     if VERBOSE:
-    #         print("Processing "+str(surface))
-    #     results.append(run_curvature_on_file.remote(surface, output_dir, config))
-    # results = [ray.get(res) for res in results]
+    results = []
+    for surface in mesh_files:
+        if VERBOSE:
+            print("Processing "+str(surface))
+        results.append(run_curvature_on_file.remote(surface, output_dir, config))
+    results = [ray.get(res) for res in results]
 
     if config["separate_connected_components"]:
         combine_ind_files_after_pycurv(config, ind_dir, basenames)
