@@ -61,9 +61,10 @@ def combine_xyz_files(files, output):
             df = current_df
         else:
             df = pd.concat([df, current_df])
-    df.to_csv(output, sep=" ", index=False, header=False)
+    if df is not None:
+        df.to_csv(output, sep=" ", index=False, header=False)
     
-def combine_vtp_files(files, output):    
+def combine_vtp_files(files, output):  
     pycurv_io.merge_vtp_files([str(file) for file in files], output)
 
 
@@ -77,7 +78,7 @@ def combine_ply_files(files, output):
 
 def combine_gt_files(files, output, order):
     complete_graph = None
-
+    properties = None
     
     for file,o in zip(files, order):
         if complete_graph is None:
@@ -88,7 +89,6 @@ def combine_gt_files(files, output, order):
                 property_ = np.array(list(getattr(complete_graph.vp, prop_name)))
                 properties[prop_name] = [property_] 
                 value_types[prop_name] = complete_graph.vp[prop_name].value_type()
-                # print(complete_graph.vp[prop_name])            
         else:
             new_graph = load_graph(file)
             combined_graph = graph_union(complete_graph, new_graph)
@@ -101,6 +101,11 @@ def combine_gt_files(files, output, order):
                 properties[prop_name].append(property_)
         
             complete_graph = combined_graph
+    if properties is None:
+        if output is not None and complete_graph is not None:
+        
+            complete_graph.save(str(output))
+        return
     for prop_name in properties.keys():
         setattr(complete_graph.vp, prop_name, complete_graph.new_vertex_property(value_types[prop_name], np.concatenate(properties[prop_name])))
 
@@ -129,7 +134,8 @@ def combine_csv_files(files, output, order):
             current_df = pd.read_csv(file,index_col=0)
             current_df["label"] = o
             df = pd.concat((df, current_df))
-    df.to_csv(output)
+    if df is not None:
+        df.to_csv(output)
 
 
 if __name__ == "__main__":
