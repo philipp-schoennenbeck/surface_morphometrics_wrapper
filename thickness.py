@@ -491,7 +491,7 @@ def thickness_by_maximum_gradient(profile, threshold,max_distance=100, gradient_
 
 def estimate_thickness(tomo_data, tomo_seg, normals, points, radius=45, height=400, pixel_size=1, points_to_calc=1000, return_thickness_map=True, methods=["global_median"],
                        profile_window_size=10, profile_sigma=1.5, max_output=10, process_id=None, output_path=None, threshold_gradient_crop=10, maxima_gradient_crop=15, gradient_threshold=0.0015, reduce_thresholds=0,
-                       ignore_restrictions=False):
+                       ignore_restrictions=False, am_remote=False):
     def clip(value, axis=0):
         return np.clip(value, 0, tomo_data.shape[axis]-1)
     MAIN_VECTOR = (0,0,1)
@@ -500,6 +500,8 @@ def estimate_thickness(tomo_data, tomo_seg, normals, points, radius=45, height=4
     radius = int(radius / pixel_size)
     height = int(height / pixel_size)
     neighbourhood_distance = int(1000 / pixel_size)
+
+
     if return_thickness_map:
 
         thickness_map = {method:np.zeros_like(tomo_data) for method in methods}
@@ -808,6 +810,8 @@ def thickness(config, basenames):
             conversion = ps 
         else:
             conversion = ps / 10
+            cylinder_height *= 10
+            cylinder_radius *= 10
 
         tomo_data_orig = tomo_data_orig.data  * 1
 
@@ -849,9 +853,9 @@ def thickness(config, basenames):
 
             tomo_data = signal.convolve(tomo_data, gaus, mode="same")
         if use_ray:
-            ray.put(tomo_data)
-            ray.put(tomo_seg)
-
+            tomo_data_ref = ray.put(tomo_data)
+            tomo_seg_ref = ray.put(tomo_seg)
+            print(type(tomo_data_ref), tomo_data_ref)
 
         for label, current_basename in basename.items():
             csv_file = current_basename.with_suffix(f".AVV_rh{radius_hit}.csv")
@@ -900,10 +904,10 @@ def thickness(config, basenames):
                     points = [points[i*points_per_njob:(i+1)*points_per_njob] for i in range(njobs)]
                     normals = [normals[i*points_per_njob:(i+1)*points_per_njob] for i in range(njobs)] 
 
-                    
-                    result = [estimate_thickness_remote.remote(tomo_data, tomo_seg, normal, point, cylinder_radius, cylinder_height, ps, 1000, True, 
+                    print(type(tomo_data_ref), type(tomo_seg_ref))
+                    result = [estimate_thickness_remote.remote(tomo_data_ref, tomo_seg_ref, normal, point, cylinder_radius, cylinder_height, ps, 1000, True, 
                                                                         methods,profile_window_size, profile_sigma,
-                                                                        check_output,process_id, current_check_output_path, threshold_gradient_crop, maxima_gradient_crop ) 
+                                                                        check_output,process_id, current_check_output_path, threshold_gradient_crop, maxima_gradient_crop, gradient_threshold, 0, False, True ) 
                                                                         for process_id, (point, normal) in enumerate(zip(points, normals))]
                     thickness_maps = {}
                     thicknesses = []
@@ -932,7 +936,7 @@ def thickness(config, basenames):
 
                         result = [pool.apply_async(estimate_thickness, args=[tomo_data, tomo_seg,  normal, point, cylinder_radius, cylinder_height, ps, 1000, True, 
                                                                             methods,profile_window_size, profile_sigma,
-                                                                            check_output,process_id, current_check_output_path, threshold_gradient_crop, maxima_gradient_crop ]) 
+                                                                            check_output,process_id, current_check_output_path, threshold_gradient_crop, maxima_gradient_crop, gradient_threshold ]) 
                                                                             for process_id, (point, normal) in enumerate(zip(points, normals))]
                         thickness_maps = {}
                         thicknesses = []
@@ -982,8 +986,9 @@ def thickness(config, basenames):
 
             orig_csv.to_csv(csv_file, sep=',', index=False)
         if use_ray:
-            del tomo_data
-        break
+            del tomo_data_ref
+            del tomo_seg_ref
+        
 
        
 

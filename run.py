@@ -325,7 +325,7 @@ def run_surface_generation(config, basenames, ind_dir, seg_values):
     results = []
     mrc_ids = []
     for mrc_file, basename in basenames.items():
-        mrc = mrcfile.open(mrc_file)
+        mrc = mrcfile.open(mrc_file, permissive=True)
         
         # mrc_ids.append(ray.put(mrc.data))
         for label, output in basename.items():
