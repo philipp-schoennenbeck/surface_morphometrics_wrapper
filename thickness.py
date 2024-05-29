@@ -736,9 +736,7 @@ def gaussian_filter(im,sig,apix):
 
     im_fft = np.fft.fftshift(np.fft.fftn(im))
     fil = gauss(fx,fy, fz, sig*apix)
-    # with mrcfile.new("/Data/erc-3/schoennen/membrane_analysis_toolkit/test_code/thickness_estimation/plots/gaus.mrc", data=fil.astype(np.float32), overwrite=True) as f:
-    #     f.voxel_size = 10.9
-    # print(fx.shape, fy.shape, im_fft.shape, fil.shape, im.shape)    
+   
     im_fft_filtered = im_fft*fil
     newim = np.real(np.fft.ifftn(np.fft.ifftshift(im_fft_filtered)))
     
@@ -855,7 +853,6 @@ def thickness(config, basenames):
         if use_ray:
             tomo_data_ref = ray.put(tomo_data)
             tomo_seg_ref = ray.put(tomo_seg)
-            print(type(tomo_data_ref), tomo_data_ref)
 
         for label, current_basename in basename.items():
             csv_file = current_basename.with_suffix(f".AVV_rh{radius_hit}.csv")
@@ -904,7 +901,6 @@ def thickness(config, basenames):
                     points = [points[i*points_per_njob:(i+1)*points_per_njob] for i in range(njobs)]
                     normals = [normals[i*points_per_njob:(i+1)*points_per_njob] for i in range(njobs)] 
 
-                    print(type(tomo_data_ref), type(tomo_seg_ref))
                     result = [estimate_thickness_remote.remote(tomo_data_ref, tomo_seg_ref, normal, point, cylinder_radius, cylinder_height, ps, 1000, True, 
                                                                         methods,profile_window_size, profile_sigma,
                                                                         check_output,process_id, current_check_output_path, threshold_gradient_crop, maxima_gradient_crop, gradient_threshold, 0, False, True ) 
