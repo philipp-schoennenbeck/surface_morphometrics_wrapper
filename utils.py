@@ -139,6 +139,4 @@ def combine_csv_files(files, output, order):
 
 
 if __name__ == "__main__":
-    combine_xyz_files(["/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/work_dir/individual_files/filtered_segmentation_mem_1_1.xyz",
-                        "/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/work_dir/individual_files/filtered_segmentation_mem_1_2.xyz"],
-                        "/Data/erc-3/schoennen/CET/membrain/SynPspA_EPl/test_cc/test_output/output.xyz")
+    pass

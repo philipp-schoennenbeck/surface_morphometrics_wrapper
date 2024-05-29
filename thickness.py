@@ -592,9 +592,10 @@ def estimate_thickness(tomo_data, tomo_seg, normals, points, radius=45, height=4
             try:
                 local_median = np.median(local_neighbourhood[local_seg_neighbourhood == 0])
             except Exception as e:
+                print(pixel_size, point, tomo_data.shape, neighbourhood_distance, tomo_seg.shape)
                 print(len(local_neighbourhood[local_seg_neighbourhood == 0]), np.unique(local_neighbourhood[local_seg_neighbourhood == 0], return_counts=True))
                 print(len(local_neighbourhood[local_seg_neighbourhood != 0]), np.unique(local_neighbourhood[local_seg_neighbourhood != 0], return_counts=True))
-                print(pixel_size, point, tomo_data.shape, neighbourhood_distance)
+                
                 raise e
             local_medians.append(local_median)
             total_points.append(point)
@@ -653,7 +654,8 @@ def estimate_thickness(tomo_data, tomo_seg, normals, points, radius=45, height=4
 
                     profile = signal.convolve(padded_profile, window/window.sum(), "valid")
                     nr_of_spline_points = 450
-        
+                    ratio = len(profile ) / nr_of_spline_points * pixel_size
+                    
                     t,c,k = splrep(np.arange(len(profile)), profile)
                     profile = BSpline(t,c,k)(np.linspace(0, len(profile), nr_of_spline_points))
 
@@ -692,6 +694,7 @@ def estimate_thickness(tomo_data, tomo_seg, normals, points, radius=45, height=4
                             reasons[method][reason] = 0
                         reasons[method][reason] += 1
                         current_thickness_estimations.append(thickness)
+
                     thicknesses.append(current_thickness_estimations)
 
 
@@ -959,7 +962,7 @@ def thickness(config, basenames):
 
             thicknesses = np.array(thicknesses).T
             if not config["surface_generation"]["angstroms"]:
-                thicknesses *= 10
+                thicknesses /= 10
             for t, method in enumerate(out_methods):
                 filtered_csv[method] = thicknesses[t]
 

@@ -30,6 +30,7 @@ def clean_up_segmentation(config, basenames):
             else:
                 shutil.copy(mrc_file, new_path)
         with mrcfile.open(mrc_file, "r+", permissive=True ) as f:
+
             data = f.data * 1
             new_data = np.zeros_like(data)
             all_labels = np.unique(data)
@@ -43,7 +44,9 @@ def clean_up_segmentation(config, basenames):
                         continue
                     if uc >= config["clean_up_segmentation"]["min_size"]:
                         new_data[l == u] = current_label
-            f.set_data(new_data)
+
+            f._data = new_data
+            # f.set_data(new_data)
 
 
 
@@ -80,7 +83,7 @@ def run_surface_generation_per_file(config, output, seg_values, label, mrc_file,
 
 def run_surface_generation_per_file_cc(config, orig_output, seg_values, label, mrc_file, data, ind_dir):
     global VERBOSE
-    basename = Path(orig_output).stem + "_" + label
+    basename = Path(orig_output).stem #+ "_" + label
     output = ind_dir / basename
 
     xyz_files = mrc2xyz.mrc_to_xyz_cc(mrc_file, output, seg_values[label], config["surface_generation"]["angstroms"], data, verbose=VERBOSE) # Convert the segmentation file to xyz files
@@ -149,7 +152,6 @@ def combine_ind_files_after_pycurv_remote(avv_vtp_files, scaled_clean_vtp_files,
             result = re.search(search_str, str(file)).group(1)
             order.append(int(result))
         return order
-    
     utils.combine_vtp_files(avv_vtp_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.vtp"))
     utils.combine_vtp_files(scaled_clean_vtp_files, current_basename.with_suffix(f".scaled_cleaned.vtp"))
     utils.combine_vtp_files(surface_vtp_files, current_basename.with_suffix(f".surface.vtp"))
@@ -182,9 +184,28 @@ def combine_ind_files_after_pycurv(config, ind_dir, basenames):
             scaled_clean_gt_files = glob.glob(str(ind_dir/(label_basename + "scaled_cleaned.gt")))
             surface_vtp_files = glob.glob(str(ind_dir/(label_basename + "surface.vtp")))
             current_basename:Path
+            # print(current_basename)
+            # print(avv_label_basename)
+            # print(1)
+            # print(avv_vtp_files)
+            # utils.combine_vtp_files(avv_vtp_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.vtp"))
+            # print(2)
+            # print(scaled_clean_vtp_files)
+            # utils.combine_vtp_files(scaled_clean_vtp_files, current_basename.with_suffix(f".scaled_cleaned.vtp"))
+            # print(3)
+            # print(surface_vtp_files)
+            # utils.combine_vtp_files(surface_vtp_files, current_basename.with_suffix(f".surface.vtp"))
+            # print(4)
+            # utils.combine_gt_files(avv_gt_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.gt"), get_order(avv_gt_files, f'.*{current_basename.name}_(.*).AVV_rh{radius_hit}.gt'))
+            # print(5)
+            # utils.combine_csv_files(avv_csv_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.csv"), get_order(avv_csv_files, f'.*{current_basename.name}_(.*).AVV_rh{radius_hit}.csv'))
+            # print(6)
+            # utils.combine_gt_files(scaled_clean_gt_files, current_basename.with_suffix(f".scaled_cleaned.gt"), get_order(scaled_clean_gt_files, f'.*{current_basename.name}_(.*).scaled_cleaned.gt')) 
+
             results.append(combine_ind_files_after_pycurv_remote.remote(avv_vtp_files, scaled_clean_vtp_files, surface_vtp_files, avv_gt_files, avv_csv_files, scaled_clean_gt_files, current_basename, radius_hit))
-            
+        
     results = [ray.get(res) for res in results]
+    print(8)
             # utils.combine_vtp_files(avv_vtp_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.vtp"))
             # utils.combine_vtp_files(scaled_clean_vtp_files, current_basename.with_suffix(f".scaled_cleaned.vtp"))
             # utils.combine_vtp_files(surface_vtp_files, current_basename.with_suffix(f".surface.vtp"))
@@ -338,7 +359,9 @@ def run(config):
     if config["separate_connected_components"]:
         ind_dir.mkdir(parents=True, exist_ok=True)
 
-
+    print(basenames)
+    print(seg_values)
+    
     tmp_dir =Path.home() / "ray"
     ray.init( _system_config={ 'automatic_object_spilling_enabled':False }, num_cpus=config["cores"], _temp_dir=str(tmp_dir))
     session = Path(tmp_dir) / "session_latest"
@@ -353,6 +376,7 @@ def run(config):
             if VERBOSE:
                 print("Starting to run surface generation:")
             run_surface_generation(config, basenames, ind_dir, seg_values)
+        
         if config["curvature_measurements"]["run"]:
             if VERBOSE:
                 print("Starting to run curvature measurements")
@@ -365,6 +389,9 @@ def run(config):
         if config["thickness_estimations"]["run"]:
             if VERBOSE:
                 print("Starting to run thickness estimations:")
+            print(config)
+            print("******")
+            print(basenames)
             thickness.thickness(config, basenames)
     except Exception as e:
         ray.shutdown()
