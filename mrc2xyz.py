@@ -52,7 +52,8 @@ def mrc_to_xyz(mrc_file, output, label, angstrom, data=None, verbose=False):
 			print("No data found for label {}".format(label))
 		return 1
 	df = pandas.DataFrame(data={'x': data[2], 'y': data[1], 'z': data[0]})
-	df = df * voxel_size + origin
+	df = df * voxel_size
+
 	df.to_csv(output, sep=" ", index=False, header=False)
 	return 0
 
@@ -95,7 +96,8 @@ def mrc_to_xyz_cc(mrc_file, output, label, angstrom, data=None, verbose=False):
 		data = np.where(l == lab)
 
 		df = pandas.DataFrame(data={'x': data[2], 'y': data[1], 'z': data[0]})
-		df = df * voxel_size + origin
+		df = df * voxel_size 
+
 		df.to_csv(current_output, sep=" ", index=False, header=False)
 		returns.append(current_output)
 	return returns

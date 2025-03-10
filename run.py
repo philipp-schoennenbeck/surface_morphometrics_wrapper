@@ -83,7 +83,7 @@ def run_surface_generation_per_file(config, output, seg_values, label, mrc_file,
 
 def run_surface_generation_per_file_cc(config, orig_output, seg_values, label, mrc_file, data, ind_dir):
     global VERBOSE
-    basename = Path(orig_output).stem #+ "_" + label
+    basename = Path(orig_output).stem# + #"_" + label
     output = ind_dir / basename
 
     xyz_files = mrc2xyz.mrc_to_xyz_cc(mrc_file, output, seg_values[label], config["surface_generation"]["angstroms"], data, verbose=VERBOSE) # Convert the segmentation file to xyz files
@@ -127,25 +127,42 @@ def run_surface_generation_per_file_cc(config, orig_output, seg_values, label, m
 
 
 
-
+import traceback
 
 
 
 @ray.remote
 def run_curvature_on_file(surface, output_dir, config):
     global VERBOSE
-    output_csv, output_gt, output_vtp = curvature.run_pycurv(surface, output_dir,
-                            scale=1.0,
-                            radius_hit=config["curvature_measurements"]["radius_hit"],
-                            min_component=config["curvature_measurements"]["min_component"],
-                            exclude_borders=config["curvature_measurements"]["exclude_borders"],
-                            cores=config["curvature_measurements"]["pycurv_cores"], verbose=VERBOSE)
+    try:
+        output_csv, output_gt, output_vtp = curvature.run_pycurv(surface, output_dir,
+                                scale=1.0,
+                                radius_hit=config["curvature_measurements"]["radius_hit"],
+                                min_component=config["curvature_measurements"]["min_component"],
+                                exclude_borders=config["curvature_measurements"]["exclude_borders"],
+                                cores=config["curvature_measurements"]["pycurv_cores"], verbose=VERBOSE)
+    except Exception as e:
+        raise e
     return output_csv, output_gt, output_vtp 
 
 
 
 @ray.remote
 def combine_ind_files_after_pycurv_remote(avv_vtp_files, scaled_clean_vtp_files, surface_vtp_files, avv_gt_files, avv_csv_files, scaled_clean_gt_files, current_basename:Path, radius_hit):
+    def get_order(files, search_str):
+        order = []
+        for file in files:
+            result = re.search(search_str, str(file)).group(1)
+            order.append(int(result))
+        return order
+    utils.combine_vtp_files(avv_vtp_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.vtp"))
+    utils.combine_vtp_files(scaled_clean_vtp_files, current_basename.with_suffix(f".scaled_cleaned.vtp"))
+    utils.combine_vtp_files(surface_vtp_files, current_basename.with_suffix(f".surface.vtp"))
+    utils.combine_gt_files(avv_gt_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.gt"), get_order(avv_gt_files, f'.*{current_basename.name}_(.*).AVV_rh{radius_hit}.gt'))
+    utils.combine_csv_files(avv_csv_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.csv"), get_order(avv_csv_files, f'.*{current_basename.name}_(.*).AVV_rh{radius_hit}.csv'))
+    utils.combine_gt_files(scaled_clean_gt_files, current_basename.with_suffix(f".scaled_cleaned.gt"), get_order(scaled_clean_gt_files, f'.*{current_basename.name}_(.*).scaled_cleaned.gt'))  
+
+def combine_ind_files_after_pycurv_without_remote(avv_vtp_files, scaled_clean_vtp_files, surface_vtp_files, avv_gt_files, avv_csv_files, scaled_clean_gt_files, current_basename:Path, radius_hit):
     def get_order(files, search_str):
         order = []
         for file in files:
@@ -184,24 +201,16 @@ def combine_ind_files_after_pycurv(config, ind_dir, basenames):
             scaled_clean_gt_files = glob.glob(str(ind_dir/(label_basename + "scaled_cleaned.gt")))
             surface_vtp_files = glob.glob(str(ind_dir/(label_basename + "surface.vtp")))
             current_basename:Path
-            # print(current_basename)
-            # print(avv_label_basename)
-            # print(1)
-            # print(avv_vtp_files)
-            # utils.combine_vtp_files(avv_vtp_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.vtp"))
-            # print(2)
-            # print(scaled_clean_vtp_files)
-            # utils.combine_vtp_files(scaled_clean_vtp_files, current_basename.with_suffix(f".scaled_cleaned.vtp"))
-            # print(3)
-            # print(surface_vtp_files)
-            # utils.combine_vtp_files(surface_vtp_files, current_basename.with_suffix(f".surface.vtp"))
-            # print(4)
-            # utils.combine_gt_files(avv_gt_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.gt"), get_order(avv_gt_files, f'.*{current_basename.name}_(.*).AVV_rh{radius_hit}.gt'))
-            # print(5)
-            # utils.combine_csv_files(avv_csv_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.csv"), get_order(avv_csv_files, f'.*{current_basename.name}_(.*).AVV_rh{radius_hit}.csv'))
-            # print(6)
-            # utils.combine_gt_files(scaled_clean_gt_files, current_basename.with_suffix(f".scaled_cleaned.gt"), get_order(scaled_clean_gt_files, f'.*{current_basename.name}_(.*).scaled_cleaned.gt')) 
 
+            utils.combine_vtp_files(avv_vtp_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.vtp"))
+
+            utils.combine_vtp_files(scaled_clean_vtp_files, current_basename.with_suffix(f".scaled_cleaned.vtp"))
+
+            utils.combine_vtp_files(surface_vtp_files, current_basename.with_suffix(f".surface.vtp"))
+            utils.combine_gt_files(avv_gt_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.gt"), get_order(avv_gt_files, f'.*{current_basename.name}_(.*).AVV_rh{radius_hit}.gt'))
+            utils.combine_csv_files(avv_csv_files, current_basename.with_suffix(f".AVV_rh{radius_hit}.csv"), get_order(avv_csv_files, f'.*{current_basename.name}_(.*).AVV_rh{radius_hit}.csv'))
+            utils.combine_gt_files(scaled_clean_gt_files, current_basename.with_suffix(f".scaled_cleaned.gt"), get_order(scaled_clean_gt_files, f'.*{current_basename.name}_(.*).scaled_cleaned.gt')) 
+            # results.append(combine_ind_files_after_pycurv_without_remote(avv_vtp_files, scaled_clean_vtp_files, surface_vtp_files, avv_gt_files, avv_csv_files, scaled_clean_gt_files, current_basename, radius_hit))
             results.append(combine_ind_files_after_pycurv_remote.remote(avv_vtp_files, scaled_clean_vtp_files, surface_vtp_files, avv_gt_files, avv_csv_files, scaled_clean_gt_files, current_basename, radius_hit))
         
     results = [ray.get(res) for res in results]
@@ -359,8 +368,7 @@ def run(config):
     if config["separate_connected_components"]:
         ind_dir.mkdir(parents=True, exist_ok=True)
 
-    print(basenames)
-    print(seg_values)
+
     
     tmp_dir =Path.home() / "ray"
     ray.init( _system_config={ 'automatic_object_spilling_enabled':False }, num_cpus=config["cores"], _temp_dir=str(tmp_dir))

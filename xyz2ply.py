@@ -27,7 +27,7 @@ def xyz_to_ply_from_CLI(xyzfile, plyfile, pointweight, simplify, num_faces, k_ne
     xyz_to_ply(xyzfile, plyfile, pointweight=pointweight, simplify=simplify, num_faces=num_faces, k_neighbors=k_neighbors, deldist=deldist, smooth_iter=smooth_iter, depth=depth)
 
 
-def xyz_to_ply(xyzfile, plyfile, pointweight=1, simplify=True, num_faces=150000, k_neighbors=70, deldist=2, smooth_iter=1, depth=9, verbose=False):
+def xyz_to_ply(xyzfile, plyfile, pointweight=1, simplify=True, num_faces=150000, k_neighbors=70, deldist=20, smooth_iter=1, depth=9, verbose=False):
     """Convert an xyz file to a ply file using pymeshlab
 
     Arguments:
@@ -41,18 +41,35 @@ def xyz_to_ply(xyzfile, plyfile, pointweight=1, simplify=True, num_faces=150000,
     """
     if verbose:
         print(f"Processing {xyzfile} into {plyfile}")
-    ms = pm.MeshSet()
-    ms.load_new_mesh(str(xyzfile))
-    ms.compute_normals_for_point_sets(k=k_neighbors, smoothiter=smooth_iter) # Predict smooth normals
-    ms.surface_reconstruction_screened_poisson(depth=depth, pointweight=pointweight, iters=10, scale=1.2) # Screened Poisson
-    ms.distance_from_reference_mesh(measuremesh = 1, refmesh=0 , maxdist=pm.Percentage(20), signeddist=False) # Delete points that are too far from the reference mesh
-    ms.conditional_vertex_selection(condselect = f'(q>{deldist})') # Select only the best quality vertices
-    ms.conditional_face_selection(condselect = f'(q0>{deldist} || q1>{deldist} || q2>{deldist})') # Select only the best quality vertices
-    ms.delete_selected_faces_and_vertices()
-    if simplify:
-        ms.simplification_quadric_edge_collapse_decimation(targetfacenum=num_faces, qualitythr=0.6, preserveboundary=True, preservenormal=True, optimalplacement=True, planarquadric=True) # Simplify
-    ms.save_current_mesh(str(plyfile))
-    ms.clear()
+    try:
+        
+        ms = pm.MeshSet()
+        ms.load_new_mesh(str(xyzfile))
+        ms.compute_normals_for_point_sets(k=k_neighbors, smoothiter=smooth_iter) # Predict smooth normals
+        ms.surface_reconstruction_screened_poisson(depth=depth, pointweight=pointweight, iters=10, scale=1.2) # Screened Poisson
+        ms.distance_from_reference_mesh(measuremesh = 1, refmesh=0 , maxdist=pm.Percentage(20), signeddist=False) # Delete points that are too far from the reference mesh
+        ms.conditional_vertex_selection(condselect = f'(q>{deldist})') # Select only the best quality vertices
+        ms.conditional_face_selection(condselect = f'(q0>{deldist} || q1>{deldist} || q2>{deldist})') # Select only the best quality vertices
+        ms.delete_selected_faces_and_vertices()
+        if simplify:
+            ms.simplification_quadric_edge_collapse_decimation(targetfacenum=num_faces, qualitythr=0.6, preserveboundary=True, preservenormal=True, optimalplacement=True, planarquadric=True) # Simplify
+        ms.save_current_mesh(str(plyfile))
+        ms.clear()
+    except Exception as e:
+        try:
+            ms = pm.MeshSet()
+            ms.load_new_mesh(str(xyzfile))
+            ms.compute_normals_for_point_sets(k=k_neighbors, smoothiter=smooth_iter) # Predict smooth normals
+            ms.surface_reconstruction_screened_poisson(depth=depth, pointweight=pointweight, iters=10, scale=1.2) # Screened Poisson
+            ms.distance_from_reference_mesh(measuremesh = 1, refmesh=0 , maxdist=pm.Percentage(20), signeddist=False) # Delete points that are too far from the reference mesh
+            ms.conditional_vertex_selection(condselect = f'(q>{deldist})') # Select only the best quality vertices
+            ms.conditional_face_selection(condselect = f'(q0>{deldist} || q1>{deldist} || q2>{deldist})') # Select only the best quality vertices
+            ms.delete_selected_faces_and_vertices()
+            ms.save_current_mesh(str(plyfile))
+            ms.clear()
+        except Exception as e:
+            print(f"DIDNT WORK FOR {xyzfile}")
+            raise e
     return 0
     
 

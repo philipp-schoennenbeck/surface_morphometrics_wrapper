@@ -11,6 +11,7 @@ import os
 from pathlib import Path
 import pathos.pools as pp
 from functools import partial
+import traceback
 
 from pycurv import (
     pexceptions, normals_directions_and_curvature_estimation, run_gen_surface,

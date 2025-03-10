@@ -13,6 +13,10 @@ workdir/
 datadir/
 output_split/
 output/
+test_output/
+test_stuff.ipynb
+test_ray.py
+test_files.ipynb
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

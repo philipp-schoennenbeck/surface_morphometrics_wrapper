@@ -12,7 +12,7 @@ from fast_histogram import histogram1d # to install
 from datetime import datetime
 from scipy.interpolate import splrep, BSpline
 from sys import argv
-
+import vtk
 import glob, os
 os.environ["RAY_DEDUP_LOGS"] = "0"
 # np.seterr(all='raise')
@@ -20,7 +20,8 @@ os.environ["RAY_DEDUP_LOGS"] = "0"
 import ray
 import ray.cloudpickle as cloudpickle
 pd.options.mode.chained_assignment = None
-
+from ray.util.queue import Queue
+from tqdm import tqdm
 
 
 
@@ -57,7 +58,7 @@ def matlab_style_gauss3D(shape=(3,3,3),sigma=0.5):
     return h
 
 
-def thickness_by_median_threshold(profile, median_value, pixel_size, max_distance=100, method=None, gradient_cutoff=0.002, output_dict=None, crop=10, ignore_restrictions=False):
+def thickness_by_median_threshold(profile, median_value, pixel_size, max_distance=10000, method=None, gradient_cutoff=0.002, output_dict=None, crop=10, ignore_restrictions=False):
     def plot_unusable(why,one, two=None, three=None):
         if output_dict is None or output_dict["output_path"] is None:
             return
@@ -103,6 +104,16 @@ def thickness_by_median_threshold(profile, median_value, pixel_size, max_distanc
             
         plt.savefig(Path(output_dict["output_path"]) / f"{process}_{method}_{why}_{counter}_{idx}.png")
         plt.close()
+
+    def plot_usable(idx):
+        if output_dict is None or output_dict["output_path"] is None:
+            return
+        plt.figure(constrained_layout=True)
+        plt.plot(profile)
+        plt.savefig(Path(output_dict["output_path"]) / f"{idx}_{method}.png")
+        plt.close()
+
+
     x_ = np.linspace(0,len(profile),len(profile),endpoint=False)
     first_line = LineString(np.column_stack((x_, profile)))
     second_line = LineString(np.column_stack((x_, np.ones(len(profile)) * median_value)))
@@ -137,7 +148,11 @@ def thickness_by_median_threshold(profile, median_value, pixel_size, max_distanc
         else:
             lowest_minimum = np.argmin(profile)
         maxima,_ = signal.find_peaks(profile)
-        
+        if profile[0] > profile[1]:
+            maxima = np.concatenate(([0], maxima))
+        if profile[-1] > profile[-2]:
+            maxima = np.concatenate((maxima, [len(profile) - 1]))
+            
         for p in range(len(maxima) -1 ):
             if maxima[p] < lowest_minimum and maxima[p+1] > lowest_minimum :
                 lower_max = maxima[p]
@@ -178,13 +193,17 @@ def thickness_by_median_threshold(profile, median_value, pixel_size, max_distanc
                         thickness = np.nan
                         reason = "Below gradient cutoff"
                         plot_unusable(reason, profile, (real_gradient, (a,b,c,d)), gradients)
+            if np.logical_not(np.isnan(thickness)):
+                if output_dict["idx"] // 50 == 0:
+                    plot_usable(output_dict["idx"])
+
 
     else:
         plot_unusable(reason, profile)
 
     return thickness, reason
 
-def thickness_by_minimum_between_maxima(profile, threshold,max_distance=100, gradient_cutoff=0.002, output_dict=None, method="Between_maxima", crop=15, ignore_restrictions=False):
+def thickness_by_minimum_between_maxima(profile, threshold,max_distance=10000, gradient_cutoff=0.002, output_dict=None, method="Between_maxima", crop=15, ignore_restrictions=False):
     def plot_usable(one, two, three, idx):
          
         fig, ax = plt.subplots(1,3, figsize=(12,4), constrained_layout=True)
@@ -258,8 +277,8 @@ def thickness_by_minimum_between_maxima(profile, threshold,max_distance=100, gra
 
     thickness = np.nan
     reason = "No intersection"
-    if intersection.geom_type == 'MultiPoint' or ignore_restrictions:
-        if not ignore_restrictions:
+    if intersection.geom_type == 'MultiPoint' or ignore_restrictions or True:
+        if not ignore_restrictions and False:
             xs = []
             ys = []
             for s in list(intersection.geoms):
@@ -276,6 +295,10 @@ def thickness_by_minimum_between_maxima(profile, threshold,max_distance=100, gra
 
 
         maxima,_ = signal.find_peaks(profile)
+        if profile[0] > profile[1]:
+            maxima = np.concatenate(([0], maxima))
+        if profile[-1] > profile[-2]:
+            maxima = np.concatenate((maxima, [len(profile) - 1]))
         if not ignore_restrictions:
             minima,_ = signal.find_peaks(profile * -1)
             middle = len(profile) // 2
@@ -295,7 +318,7 @@ def thickness_by_minimum_between_maxima(profile, threshold,max_distance=100, gra
                 thickness = (maxima[p+1] - maxima[p] )
                 reason = "Worked"
                 break
-        if not ignore_restrictions:
+        if not ignore_restrictions and False:
             for r in range(len(xs)-1):
                 if xs[r] > maxima[p] and xs[r] < lowest_minimum and xs[r+1] < maxima[p+1] and xs[r+1] > lowest_minimum:
                     break
@@ -328,7 +351,7 @@ def thickness_by_minimum_between_maxima(profile, threshold,max_distance=100, gra
     return thickness, reason
 
 
-def thickness_by_maximum_gradient(profile, threshold,max_distance=100, gradient_cutoff=0.002, output_dict=None, method="Gradient", crop=15, ignore_restrictions=False):
+def thickness_by_maximum_gradient(profile, threshold,max_distance=10000, gradient_cutoff=0.002, output_dict=None, method="Gradient", crop=15, ignore_restrictions=False):
     def plot_usable(one, two, three, idx, four):
          
         fig, ax = plt.subplots(1,3, figsize=(12,4), constrained_layout=True)
@@ -403,8 +426,8 @@ def thickness_by_maximum_gradient(profile, threshold,max_distance=100, gradient_
 
     thickness = np.nan
     reason = "No intersection"
-    if intersection.geom_type == 'MultiPoint' or ignore_restrictions:
-        if not ignore_restrictions:
+    if intersection.geom_type == 'MultiPoint' or ignore_restrictions or True:
+        if not ignore_restrictions and False:
             xs = []
             ys = []
             for s in list(intersection.geoms):
@@ -421,6 +444,10 @@ def thickness_by_maximum_gradient(profile, threshold,max_distance=100, gradient_
 
 
         maxima,_ = signal.find_peaks(profile)
+        if profile[0] > profile[1]:
+            maxima = np.concatenate(([0], maxima))
+        if profile[-1] > profile[-2]:
+            maxima = np.concatenate((maxima, [len(profile) - 1]))
         if not ignore_restrictions:
             minima,_ = signal.find_peaks(profile * -1)
             middle = len(profile) // 2
@@ -440,7 +467,7 @@ def thickness_by_maximum_gradient(profile, threshold,max_distance=100, gradient_
                 thickness = (maxima[p+1] - maxima[p] )
                 reason = "Worked"
                 break
-        if not ignore_restrictions:
+        if not ignore_restrictions and False:
             for r in range(len(xs)-1):
                 if xs[r] > maxima[p] and xs[r] < lowest_minimum and xs[r+1] < maxima[p+1] and xs[r+1] > lowest_minimum:
                     break
@@ -475,7 +502,7 @@ def thickness_by_maximum_gradient(profile, threshold,max_distance=100, gradient_
                         reason = "Gradient below threshold"
                         plot_unusable(reason, profile, (real_gradient, (a,b,c,d)), gradients)
                     else:
-                        if output_dict["idx"] % 50 == 0 or thickness > 80:
+                        if output_dict["idx"] % 50 == 0:
                             plot_usable(profile, real_gradient, gradients, output_dict["idx"], (lowest_gradient, highest_gradient))
                 
                     
@@ -491,15 +518,17 @@ def thickness_by_maximum_gradient(profile, threshold,max_distance=100, gradient_
 
 def estimate_thickness(tomo_data, tomo_seg, normals, points, radius=45, height=400, pixel_size=1, points_to_calc=1000, return_thickness_map=True, methods=["global_median"],
                        profile_window_size=10, profile_sigma=1.5, max_output=10, process_id=None, output_path=None, threshold_gradient_crop=10, maxima_gradient_crop=15, gradient_threshold=0.0015, reduce_thresholds=0,
-                       ignore_restrictions=False, am_remote=False):
+                       ignore_restrictions=False, am_remote=False, progress_queue=None):
     def clip(value, axis=0):
         return np.clip(value, 0, tomo_data.shape[axis]-1)
     MAIN_VECTOR = (0,0,1)
     counter = 0
     idx_counter = 0
+    orig_height = height
     radius = int(radius / pixel_size)
     height = int(height / pixel_size)
-    neighbourhood_distance = int(1000 / pixel_size)
+    neighbourhood_distance = int(max(radius, height) * 2)
+    # neighbourhood_distance = int(1000 / pixel_size)
 
 
     if return_thickness_map:
@@ -527,6 +556,8 @@ def estimate_thickness(tomo_data, tomo_seg, normals, points, radius=45, height=4
     usable = []
     reasons = {method:{"unusable":0} for method in methods}
     for point_counter, (normal_vector, point) in enumerate(zip(normals, points)):
+        if progress_queue is not None and process_id == 0:
+             progress_queue.put(point_counter + 1)
         counter += 1
         if np.any(point <height // 2) or np.any(point > (np.array(tomo_data.shape) - height // 2)) or np.isclose(np.sum(normal_vector + MAIN_VECTOR),0):
             usable.append(False)
@@ -535,7 +566,8 @@ def estimate_thickness(tomo_data, tomo_seg, normals, points, radius=45, height=4
             total_counts.append(0)
             local_modes.append(0)
             total_coordinates.append(np.empty((3,0)))
-            total_points.append(None)
+            total_points.append(f"{point}\t0\t{np.any(point <height // 2)} {np.any(point > (np.array(tomo_data.shape) - height // 2))} {np.isclose(np.sum(normal_vector + MAIN_VECTOR),0)} {height} {radius}  {orig_height} {pixel_size} {tomo_data.shape}")
+
             for method in methods:
                 reasons[method]["unusable"] += 1
         else:
@@ -583,7 +615,7 @@ def estimate_thickness(tomo_data, tomo_seg, normals, points, radius=45, height=4
                 total_counts.append(0)
                 local_modes.append(0)
                 total_coordinates.append(np.empty((3,0)))
-                total_points.append(None)
+                total_points.append(f"{point}\t1")
                 for method in methods:
                     reasons[method]["unusable"] += 1
                 continue
@@ -592,7 +624,8 @@ def estimate_thickness(tomo_data, tomo_seg, normals, points, radius=45, height=4
             local_neighbourhood = tomo_data[clip(point[0] - neighbourhood_distance//2,0) :clip(point[0] + neighbourhood_distance//2,0),clip(point[1] - neighbourhood_distance//2,1):clip(point[1] + neighbourhood_distance//2,1),clip(point[2] - neighbourhood_distance//2,2):clip(point[2] + neighbourhood_distance//2,2)]
             local_seg_neighbourhood = tomo_seg[clip(point[0] - neighbourhood_distance//2,0) :clip(point[0] + neighbourhood_distance//2,0),clip(point[1] - neighbourhood_distance//2,1):clip(point[1] + neighbourhood_distance//2,1),clip(point[2] - neighbourhood_distance//2,2):clip(point[2] + neighbourhood_distance//2,2)]
             try:
-                local_median = np.median(local_neighbourhood[local_seg_neighbourhood == 0])
+                # local_median = np.median(local_neighbourhood[local_seg_neighbourhood == 0])
+                local_median = np.quantile(local_neighbourhood[local_seg_neighbourhood == 0],1/3)
             except Exception as e:
                 print(pixel_size, point, tomo_data.shape, neighbourhood_distance, tomo_seg.shape)
                 print(len(local_neighbourhood[local_seg_neighbourhood == 0]), np.unique(local_neighbourhood[local_seg_neighbourhood == 0], return_counts=True))
@@ -655,7 +688,7 @@ def estimate_thickness(tomo_data, tomo_seg, normals, points, radius=45, height=4
                     padded_profile = np.concatenate([np.ones((profile_window_size - 1) // 2)* v[0], v, np.ones((profile_window_size - 1) // 2)* v[-1]])
 
                     profile = signal.convolve(padded_profile, window/window.sum(), "valid")
-                    nr_of_spline_points = 450
+                    nr_of_spline_points = int(orig_height)
                     ratio = len(profile ) / nr_of_spline_points * pixel_size
                     
                     t,c,k = splrep(np.arange(len(profile)), profile)
@@ -764,8 +797,8 @@ def thickness(config, basenames):
     tomograms = find_tomograms(config, basenames)
 
     # Get some parameters from config
-    cylinder_radius = config["thickness_estimations"]["cylinder_radius"]
-    cylinder_height = config["thickness_estimations"]["cylinder_height"]
+    orig_cylinder_radius = config["thickness_estimations"]["cylinder_radius"]
+    orig_cylinder_height = config["thickness_estimations"]["cylinder_height"]
     profile_window_size = config["thickness_estimations"]["profile_window_size"]
     profile_sigma = config["thickness_estimations"]["profile_sigma"]
     output_path = Path(config["work_dir"])
@@ -808,9 +841,9 @@ def thickness(config, basenames):
             conversion = ps 
         else:
             conversion = ps / 10
-            cylinder_height *= 10
-            cylinder_radius *= 10
-
+            cylinder_height = orig_cylinder_height * 10
+            cylinder_radius = orig_cylinder_radius * 10
+            
         tomo_data_orig = tomo_data_orig.data  * 1
 
 
@@ -897,17 +930,25 @@ def thickness(config, basenames):
                 current_check_output_path.mkdir(parents=True)
             if njobs > 1:
                 if use_ray:
+                    progress_queue = Queue()
                     points_per_njob = int(len(points) / njobs) + 1
                     points = [points[i*points_per_njob:(i+1)*points_per_njob] for i in range(njobs)]
                     normals = [normals[i*points_per_njob:(i+1)*points_per_njob] for i in range(njobs)] 
 
                     result = [estimate_thickness_remote.remote(tomo_data_ref, tomo_seg_ref, normal, point, cylinder_radius, cylinder_height, ps, 1000, True, 
                                                                         methods,profile_window_size, profile_sigma,
-                                                                        check_output,process_id, current_check_output_path, threshold_gradient_crop, maxima_gradient_crop, gradient_threshold, 0, False, True ) 
+                                                                        check_output,process_id, current_check_output_path, threshold_gradient_crop, maxima_gradient_crop, gradient_threshold, 0, False, True, progress_queue ) 
                                                                         for process_id, (point, normal) in enumerate(zip(points, normals))]
                     thickness_maps = {}
                     thicknesses = []
                     total_reasons = {}
+                    with tqdm(total=len(points[0]), smoothing=0) as pbar:
+                        completed = 0
+                        while completed < len(points[0]):
+                            # Get progress updates from the queue
+                            update = progress_queue.get()  # Blocking call
+                            pbar.update(update - completed)  # Update tqdm
+                            completed = update
                     for res in result:
                         th, th_map, reasons = ray.get(res)
                         for method, reas in reasons.items():
@@ -954,7 +995,7 @@ def thickness(config, basenames):
                                     thickness_maps[method] += thickness_map
                             thicknesses.extend(th)
             else:
-                thicknesses, thickness_maps, reasons = estimate_thickness(tomo_data, tomo_seg, normals, points, cylinder_radius, cylinder_height, ps, 1000, 
+                thicknesses, thickness_maps, total_reasons = estimate_thickness(tomo_data, tomo_seg, normals, points, cylinder_radius, cylinder_height, ps, 1000, 
                                                                         True, methods,profile_window_size,
                                                                             profile_sigma, check_output, 0, current_check_output_path,threshold_gradient_crop,
                                                                             maxima_gradient_crop, gradient_threshold)
@@ -981,6 +1022,93 @@ def thickness(config, basenames):
 
 
             orig_csv.to_csv(csv_file, sep=',', index=False)
+
+
+            vtp_file = current_basename.with_suffix(f".AVV_rh{radius_hit}.vtp")
+            # Create a reader for the .vtp file
+            reader = vtk.vtkXMLPolyDataReader()
+            reader.SetFileName(vtp_file)
+            reader.Update()  # Read the file
+
+            
+
+            # Get the output vtkPolyData
+            poly_data = reader.GetOutput()
+            if poly_data is None:
+                print("Error: Unable to read the file or the file is empty.")
+            else:
+                # Retrieve the cell data from the vtkPolyData
+                cell_data = poly_data.GetCellData()
+
+                # List available arrays in cell data
+                num_arrays = cell_data.GetNumberOfArrays()
+                for i in range(num_arrays):
+                    array_name = cell_data.GetArrayName(i)
+                    # print(f"  Array {i}: {array_name}")
+                    data_array = cell_data.GetArray(array_name)
+                    num_cells = poly_data.GetNumberOfCells()
+
+                # Example: Access a specific array by name
+                array_name = "xyz"  # Replace with the actual array name you are interested in
+                data_array = cell_data.GetArray(array_name)
+
+                # Check if the array exists
+                is_close = []
+
+                thickness_columns = [c for c in orig_csv.columns if "thickness" in c]
+
+
+                
+
+                if data_array is not None:
+                    num_cells = poly_data.GetNumberOfCells()
+
+                    new_arrays = {c:vtk.vtkFloatArray() for c in thickness_columns}
+                    for c in thickness_columns:
+                        new_arrays[c].SetName(c)  # Set the name of the array
+                        new_arrays[c].SetNumberOfComponents(1)
+                        new_arrays[c].SetNumberOfTuples(num_cells)
+                    # new_array = vtk.vtkFloatArray()
+                    # new_array.SetName("thickness_global_median")  # Set the name of the array
+                    # new_array.SetNumberOfComponents(1)
+                    # new_array.SetNumberOfTuples(num_cells)
+
+
+
+                    for i in range(num_cells):
+                        value = data_array.GetTuple(i)
+                        xyz = (orig_csv["xyz_x"].iloc[i], orig_csv["xyz_y"].iloc[i],orig_csv["xyz_z"].iloc[i])
+                        # print(f"Cell {i} {array_name}: {value} {pd_values}")
+                        is_close.append(np.all(np.isclose(value, xyz)))
+                        for c in thickness_columns:
+                            new_arrays[c].SetValue(i, float(orig_csv[c].iloc[i]))
+
+
+                    for c in thickness_columns:
+                        cell_data.AddArray(new_arrays[c])
+
+
+                    # output_file_path =  "/Data/erc-3/schoennen/tests/sabrina_test_mrc/morphometrics/Morphometrics/morphometrics/T3_corrected-flippedz_enhanced_labels-FINAL_Membrane.AVV_rh8.vtp" # Replace with the desired output file path
+
+                    writer = vtk.vtkXMLPolyDataWriter()
+                    writer.SetFileName(vtp_file)
+
+                    # This is crucial: set the input data for the writer
+                    writer.SetInputData(poly_data)
+
+                    # Optionally, set the data mode to binary (the default is ASCII)
+                    # writer.SetDataModeToBinary()
+
+                    # Write the file
+                    writer.Write()
+                else:
+                    print(f"Array '{array_name}' not found.")
+
+
+
+
+            print(total_reasons)
+        
         if use_ray:
             del tomo_data_ref
             del tomo_seg_ref
